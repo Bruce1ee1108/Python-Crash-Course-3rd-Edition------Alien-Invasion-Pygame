@@ -1,0 +1,1 @@
+ elif event.key == pygame.K_q:
