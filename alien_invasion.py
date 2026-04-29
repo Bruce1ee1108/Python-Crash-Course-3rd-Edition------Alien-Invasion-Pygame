@@ -1,15 +1,3 @@
-#改进日志：现在的想法是做成雷霆战机的那种样子
-#首先速度肯定要改，由于是全屏的情况下还要再做考虑（能不能把雷霆战机的屏幕横过来？）
-#增加道具，如果飞船接触到道具有加成
-#增加不同种类的外星人，不同颜色，不同数值，血量和速度
-#背景肯定要更换
-#试着将它做成一个安装包的形式，而不是纯代码
-#能不能用python写一个植物大战僵尸出来？
-#击杀反馈太差没有打击感
-#增加飞机的惯性系统
-#射击不是单点而是只要按了空格就会发射
-#移动改为wasd
-
 
 import sys
 
@@ -20,6 +8,7 @@ import pygame
 from setting import Settings
 from game_stats import GameStats
 from button import Button
+from scoreboard import Scoreboard
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
@@ -36,6 +25,7 @@ class AlienInvasion:
         pygame.display.set_caption("Alien Invasion")
 
         self.stats = GameStats(self)
+        self.sb = Scoreboard(self)
 
         self.ship = Ship(self)
 
@@ -71,6 +61,9 @@ class AlienInvasion:
                 self._check_keydown_events(event)
             elif event.type ==pygame.KEYUP:
                 self._check_keyup_events(event)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                self._check_play_button(mouse_pos)
 
     def _check_keydown_events(self,event):
         if event.key == pygame.K_RIGHT:
@@ -100,6 +93,8 @@ class AlienInvasion:
         self.ship.blitme()
         self.aliens.draw(self.screen)
 
+        self.sb.show_score()
+
         if not self.game_active:
             self.play_button.draw_button()
 
@@ -118,6 +113,20 @@ class AlienInvasion:
     
     def _check_bullet_alien_collisions(self):
         collisions = pygame.sprite.groupcollide(self.bullets,self.aliens, True, True)
+
+        if collisions:
+            for aliens in collisions.values():
+                self.stats.score += self.settings.alien_points*len(aliens)
+            self.sb.prep_score()
+            self.sb.check_high_score()
+
+        if not self.aliens:
+            self.bullets.empty()
+            self._create_fleet()
+            self.settings.increase_speed()
+
+            self.stats.level += 1
+            self.sb.prep_level()
         
 
     def _create_fleet(self):
@@ -167,6 +176,7 @@ class AlienInvasion:
         if self.stats.ships_left > 0:
         
             self.stats.ships_left -= 1
+            self.sb.prep_ships()
 
             self.bullets.empty()
             self.aliens.empty()
@@ -178,12 +188,33 @@ class AlienInvasion:
 
         else:
             self.game_active = False
+            pygame.mouse.set_visible(True)
 
     def _check_aliens_bottom(self):
         for alien in self.aliens.sprites():
             if alien.rect.bottom >= self.settings.screen_height:
                 self._ship_hit()
                 break
+
+    def _check_play_button(self,mouse_pos):
+        button_clicked = self.play_button.rect.collidepoint(mouse_pos)
+        if button_clicked and not self.game_active:
+
+            self.settings.initialize_dynamic_settings()
+
+            self.stats.reset_stats()
+            self.sb.prep_score()
+            self.sb.prep_level()
+            self.sb.prep_ships()
+            self.game_active = True
+
+            self.bullets.empty()
+            self.aliens.empty()
+
+            self._create_fleet()
+            self.ship.center_ship()
+
+            pygame.mouse.set_visible(False)
            
 
             
